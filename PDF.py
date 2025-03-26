@@ -116,7 +116,23 @@ Summary:
     summary = chatchain.invoke({"content": content})
     return summary
 
+import os
+
 def generate_response(context, question, temperature=0.4):
+    """
+    Generate a response using the AzureChatOpenAI model.
+    Default values for API key, deployment name, and endpoint are read from environment variables.
+    """
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_openai import AzureChatOpenAI
+    from langchain_core.output_parsers import StrOutputParser
+    
+    # Read environment variables (ensure these are set in your environment)
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    GPT_DEPLOYMENT_NAME = os.getenv("OPENAI_GPT_DEPLOYMENT_NAME")
+    GPT_AZURE_ENDPOINT = os.getenv("OPENAI_CHAT_API_BASE")
+    REQUEST_TIMEOUT_DEFAULT = 1000  # in milliseconds
+    
     sample_prompt_template = """
     You are a helpful assistant that answers questions based on the context provided below.
     Context:
@@ -129,14 +145,9 @@ def generate_response(context, question, temperature=0.4):
     - Do not mention document IDs or page numbers.
     - If insufficient context is provided, say: "The document does not contain information related to your question. Kindly reframe your question."
     """
-    from langchain_core.prompts import ChatPromptTemplate
-    from langchain_openai import AzureChatOpenAI
-    from langchain_core.output_parsers import StrOutputParser
-    # Use environment variables or hardcoded values as defaults
-    API_KEY = os.getenv("OPENAI_API_KEY")
-    GPT_DEPLOYMENT_NAME = os.getenv("OPENAI_GPT_DEPLOYMENT_NAME")
-    GPT_AZURE_ENDPOINT = os.getenv("OPENAI_CHAT_API_BASE")
+    
     chat_prompt_template = ChatPromptTemplate.from_template(sample_prompt_template)
+    
     model = AzureChatOpenAI(
         deployment_name=GPT_DEPLOYMENT_NAME,
         temperature=temperature,
@@ -144,13 +155,18 @@ def generate_response(context, question, temperature=0.4):
         openai_api_type="azure_ad",
         azure_endpoint=GPT_AZURE_ENDPOINT,
         openai_api_key=API_KEY,
-        request_timeout=1000,
+        request_timeout=REQUEST_TIMEOUT_DEFAULT,
         streaming=False
     )
+    
     chatchain = chat_prompt_template | model | StrOutputParser()
     response = chatchain.invoke({"context": context, "question": question})
     return response
 
+    
+    
+    
+    
 
 
 # Original query_function retained for backward compatibility (not used in new UI flow)
