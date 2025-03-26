@@ -116,19 +116,26 @@ Summary:
     summary = chatchain.invoke({"content": content})
     return summary
 
-def generate_response(context, question, temperature=TEMPERATURE_DEFAULT):
+def generate_response(context, question, temperature=0.4):
     sample_prompt_template = """
-You are a helpful assistant that answers questions based on the context provided below. You must **only** use the context for answering.
-Context:
-{context}
+    You are a helpful assistant that answers questions based on the context provided below.
+    Context:
+    {context}
 
-Question: {question}
+    Question: {question}
 
-Answer (based only on the context above):
-- Provide a detailed and comprehensive answer.
-- Do not mention Document ID or page number.
-- If the context does not provide enough information to answer the question, respond with: "The document does not contain information related to your question. Kindly reframe your question."
-"""
+    Answer (based only on the context above):
+    - Provide a detailed answer.
+    - Do not mention document IDs or page numbers.
+    - If insufficient context is provided, say: "The document does not contain information related to your question. Kindly reframe your question."
+    """
+    from langchain_core.prompts import ChatPromptTemplate
+    from langchain_openai import AzureChatOpenAI
+    from langchain_core.output_parsers import StrOutputParser
+    # Use environment variables or hardcoded values as defaults
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    GPT_DEPLOYMENT_NAME = os.getenv("OPENAI_GPT_DEPLOYMENT_NAME")
+    GPT_AZURE_ENDPOINT = os.getenv("OPENAI_CHAT_API_BASE")
     chat_prompt_template = ChatPromptTemplate.from_template(sample_prompt_template)
     model = AzureChatOpenAI(
         deployment_name=GPT_DEPLOYMENT_NAME,
@@ -137,13 +144,14 @@ Answer (based only on the context above):
         openai_api_type="azure_ad",
         azure_endpoint=GPT_AZURE_ENDPOINT,
         openai_api_key=API_KEY,
-        request_timeout=REQUEST_TIMEOUT_DEFAULT,
-        streaming=False,
-        http_client=http_client
+        request_timeout=1000,
+        streaming=False
     )
     chatchain = chat_prompt_template | model | StrOutputParser()
     response = chatchain.invoke({"context": context, "question": question})
     return response
+
+
 
 # Original query_function retained for backward compatibility (not used in new UI flow)
 def query_function(full_chat_history):
