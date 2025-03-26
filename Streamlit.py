@@ -15,10 +15,10 @@ import os
 # === IMPORTANT: st.set_page_config must be the very first Streamlit command ===
 st.set_page_config(page_title="NatWest Chatbot", layout="wide")
 
-# ===== Updated Custom CSS for a cleaner, ChatGPT-like UI with reduced sizes =====
+# ===== Updated Custom CSS for a cleaner, ChatGPT-like UI =====
 st.markdown("""
     <style>
-    /* Header container styling */
+    /* Header container styling: reduced font size and logo width */
     .header-container {
         display: flex;
         justify-content: space-between;
@@ -28,17 +28,16 @@ st.markdown("""
         margin-bottom: 10px;
     }
     .header-container h1 {
-        font-size: 24px; /* Reduced heading size */
+        font-size: 20px; /* Reduced heading size */
         margin: 0;
     }
-    /* Chat history container styling */
+    /* Chat history container: removed fixed height for dynamic growth */
     .chat-container {
-        height: 350px; /* Reduced height */
-        overflow-y: auto;
         padding: 10px;
         border: 1px solid #ddd;
         border-radius: 5px;
         background-color: #f8f9fa;
+        max-width: 100%;
     }
     /* Chat bubbles */
     .user-msg {
@@ -57,7 +56,7 @@ st.markdown("""
         text-align: left;
         font-size: 14px;
     }
-    /* Fixed container for chat input */
+    /* Fixed container for chat input remains the same */
     .chat-input-container {
         position: sticky;
         bottom: 0;
@@ -84,11 +83,11 @@ if "summary" not in st.session_state:
 if "processing_time" not in st.session_state:
     st.session_state.processing_time = None
 
-# ===== Header with NatWest Logo (with reduced logo size) =====
+# ===== Header with NatWest Logo (logo size reduced) =====
 with st.container():
     st.markdown("<div class='header-container'>", unsafe_allow_html=True)
     st.markdown("<h1>Welcome to Treasury Hackathon PDF Screening!</h1>", unsafe_allow_html=True)
-    st.image("https://upload.wikimedia.org/wikipedia/en/thumb/e/ea/NatWest_logo.svg/2560px-NatWest_logo.svg.png", width=100)  # Reduced logo width
+    st.image("https://upload.wikimedia.org/wikipedia/en/thumb/e/ea/NatWest_logo.svg/2560px-NatWest_logo.svg.png", width=70)  # Reduced logo width
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ===== Sidebar Options: File Uploads for PDF Document and Expected Responses =====
@@ -140,29 +139,31 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Error processing expected PDF: {e}")
 
-# ===== Main Area: Document Summary and Chat Interface =====
-# --- Display Summary in the Main Area if Available ---
-if st.session_state.summary:
-    st.markdown("## Document Summary")
-    st.markdown(st.session_state.summary, unsafe_allow_html=True)
-    st.markdown(f"**Metrics:** Total chunks: {len(st.session_state.chunks)} | Processing time: {st.session_state.processing_time:.2f} seconds")
-
+# ===== Main Area: Chat Interface with Summary inside Chat Container =====
 st.markdown("---")
 st.markdown("## Chat Interface")
 
-# ===== Chat History Display =====
 with st.container():
     st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
-    for msg in st.session_state.messages:
-        if msg["role"] == "User":
-            st.markdown(f"<div class='user-msg'><strong>You:</strong> {msg['content']}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div class='bot-msg'><strong>Bot:</strong> {msg['content']}</div>", unsafe_allow_html=True)
-            # Display sources if available
-            if "sources" in msg and msg["sources"]:
-                st.markdown("<em>Sources:</em>")
-                for src in msg["sources"]:
-                    st.markdown(f"- {src}")
+    # --- NEW: Display the summary as the first bot message if available ---
+    if st.session_state.summary:
+        st.markdown(f"<div class='bot-msg'><strong>Summary:</strong><br>{st.session_state.summary}</div>", unsafe_allow_html=True)
+        st.markdown(f"<em>Metrics:</em> Total chunks: {len(st.session_state.chunks)} | Processing time: {st.session_state.processing_time:.2f} seconds", unsafe_allow_html=True)
+    
+    # --- Display chat history if available ---
+    if st.session_state.messages:
+        for msg in st.session_state.messages:
+            if msg["role"] == "User":
+                st.markdown(f"<div class='user-msg'><strong>You:</strong> {msg['content']}</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div class='bot-msg'><strong>Bot:</strong> {msg['content']}</div>", unsafe_allow_html=True)
+                # Display sources if available
+                if "sources" in msg and msg["sources"]:
+                    st.markdown("<em>Sources:</em>")
+                    for src in msg["sources"]:
+                        st.markdown(f"- {src}")
+    else:
+        st.info("No conversation yet. Start by asking a question below.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ===== Chat Input Area =====
