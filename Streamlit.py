@@ -1,11 +1,14 @@
 import streamlit as st
 import tempfile
+import io
+import hashlib  # <-- NEW: for computing file hash
+import time    # <-- NEW: to measure processing time (optional)
 from pdf_screening import (
     pdf_ingestion,
     query_function,      # (retained for backward compatibility, not used in new flow)
-    generate_summary,    # For generating the document summary
-    retrieve_documents,  # To retrieve docs for answering questions
-    generate_response    # To generate answers based on context
+    generate_summary,
+    retrieve_documents,
+    generate_response
 )
 import os
 
@@ -68,6 +71,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "expected_text" not in st.session_state:
     st.session_state.expected_text = ""
+if "uploaded_pdf_hash" not in st.session_state:
+    st.session_state.uploaded_pdf_hash = None  # <-- NEW: for file deduplication
 
 # ===== Header with NatWest Logo =====
 with st.container():
@@ -100,18 +105,36 @@ with st.sidebar:
 st.markdown("## Upload and Index PDF Document")
 pdf_file = st.file_uploader("Upload a PDF file", type="pdf", key="pdf_upload")
 if pdf_file is not None:
-    if st.button("Process PDF & Generate Index"):
-        with st.spinner("Processing PDF..."):
-            # Pass the uploaded file to pdf_ingestion() to generate vector DB and text chunks
-            vector_db, chunks = pdf_ingestion(pdf_file)
-            st.session_state.vector_db = vector_db
-            st.session_state.chunks = chunks
-            # Generate a well formatted summary with headings/sub-headings
-            summary = generate_summary(chunks)
-        st.success("PDF processed, indexed, and summarized!")
-        st.markdown("## Document Summary")
-        st.markdown(summary, unsafe_allow_html=True)
+    # ---- NEW: Compute file hash from uploaded file bytes to check for duplicates
+    file_bytes = pdf_file.getvalue()
+    pdf_hash = hashlib.sha256(file_bytes).hexdigest()
 
+    # ---- Check if the uploaded file is the same as before
+    if st.session_state.uploaded_pdf_hash == pdf_hash and st.session_state.vector_db is not None:
+        st.info("Same file detected. Reusing existing index.")
+        vector_db = st.session_state.vector_db
+        chunks = st.session_state.chunks
+    else:
+        if st.button("Process PDF & Generate Index"):
+            with st.spinner("Processing PDF..."):
+                start_time = time.time()  # <-- NEW: Start timer for metrics
+                # ---- Write uploaded file to a temporary file for processing
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    tmp.write(file_bytes)
+                    tmp_path = tmp.name
+                # ---- Process the temporary file instead of a fixed path
+                vector_db, chunks = pdf_ingestion(tmp_path)
+                st.session_state.vector_db = vector_db
+                st.session_state.chunks = chunks
+                st.session_state.uploaded_pdf_hash = pdf_hash  # Save the hash for future comparisons
+                processing_time = time.time() - start_time  # <-- NEW: Compute processing time
+                # ---- Generate a well formatted summary with headings/sub-headings
+                summary = generate_summary(chunks)
+            st.success("PDF processed, indexed, and summarized!")
+            st.markdown("## Document Summary")
+            st.markdown(summary, unsafe_allow_html=True)
+            # ---- NEW: Display simple metrics below the summary
+            st.markdown(f"**Metrics:** Total chunks generated: {len(chunks)} | Processing time: {processing_time:.2f} seconds")
 st.markdown("---")
 st.markdown("## Chat Interface")
 
