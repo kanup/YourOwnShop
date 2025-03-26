@@ -79,6 +79,10 @@ if "expected_text" not in st.session_state:
     st.session_state.expected_text = ""
 if "uploaded_pdf_hash" not in st.session_state:
     st.session_state.uploaded_pdf_hash = None  # For file deduplication
+if "summary" not in st.session_state:
+    st.session_state.summary = None
+if "processing_time" not in st.session_state:
+    st.session_state.processing_time = None
 
 # ===== Header with NatWest Logo (with reduced logo size) =====
 with st.container():
@@ -91,7 +95,7 @@ with st.container():
 with st.sidebar:
     st.header("Upload Options")
     
-    # --- NEW: PDF Document Upload for Indexing (moved from center to sidebar) ---
+    # --- PDF Document Upload for Indexing (in the sidebar) ---
     pdf_file = st.file_uploader("Upload PDF Document", type="pdf", key="pdf_upload")
     if pdf_file is not None:
         # Compute file hash to check for duplicates
@@ -118,12 +122,11 @@ with st.sidebar:
                     st.session_state.uploaded_pdf_hash = pdf_hash
                     processing_time = time.time() - start_time
                     summary = generate_summary(chunks)
+                    st.session_state.summary = summary
+                    st.session_state.processing_time = processing_time
                 st.success("PDF processed, indexed, and summarized!")
-                st.markdown("## Document Summary")
-                st.markdown(summary, unsafe_allow_html=True)
-                st.markdown(f"**Metrics:** Total chunks: {len(chunks)} | Processing time: {processing_time:.2f} seconds")
     
-    # --- Expected Responses PDF Upload ---
+    # --- Expected Responses PDF Upload (optional) ---
     expected_pdf = st.file_uploader("Upload Expected Responses PDF", type="pdf", key="expected_pdf")
     if expected_pdf is not None:
         try:
@@ -137,7 +140,12 @@ with st.sidebar:
         except Exception as e:
             st.error(f"Error processing expected PDF: {e}")
 
-# --- Removed the center PDF upload block ---
+# ===== Main Area: Document Summary and Chat Interface =====
+# --- Display Summary in the Main Area if Available ---
+if st.session_state.summary:
+    st.markdown("## Document Summary")
+    st.markdown(st.session_state.summary, unsafe_allow_html=True)
+    st.markdown(f"**Metrics:** Total chunks: {len(st.session_state.chunks)} | Processing time: {st.session_state.processing_time:.2f} seconds")
 
 st.markdown("---")
 st.markdown("## Chat Interface")
